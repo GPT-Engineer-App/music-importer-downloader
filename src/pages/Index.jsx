@@ -1,10 +1,12 @@
 import React, { useState, useRef } from "react";
 import { Container, VStack, Text, Button, Input, HStack, IconButton } from "@chakra-ui/react";
 import { FaPlay, FaPause, FaStop, FaDownload } from "react-icons/fa";
+import axios from "axios";
 
 const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const audioRef = useRef(null);
 
   const handlePlay = () => {
@@ -49,6 +51,16 @@ const Index = () => {
     }
   };
 
+  const handleYoutubeDownload = async () => {
+    try {
+      const response = await axios.post("https://your-youtube-to-mp3-api.com/download", { url: youtubeUrl });
+      setAudioUrl(response.data.audioUrl);
+      setIsPlaying(false);
+    } catch (error) {
+      console.error("Error downloading audio from YouTube:", error);
+    }
+  };
+
   return (
     <Container centerContent maxW="container.md" height="100vh" display="flex" flexDirection="column" justifyContent="center" alignItems="center">
       <VStack spacing={4}>
@@ -62,6 +74,10 @@ const Index = () => {
         <Input type="file" accept="audio/*" onChange={handleFileChange} />
         <Button leftIcon={<FaDownload />} onClick={handleDownload} isDisabled={!audioUrl}>
           Download
+        </Button>
+        <Input placeholder="Enter YouTube URL" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
+        <Button onClick={handleYoutubeDownload} isDisabled={!youtubeUrl}>
+          Download from YouTube
         </Button>
       </VStack>
     </Container>
