@@ -1,11 +1,13 @@
 import React, { useState, useRef } from "react";
-import { Container, VStack, Text, Button, Input, HStack, IconButton } from "@chakra-ui/react";
-import { FaPlay, FaPause, FaStop, FaDownload } from "react-icons/fa";
+import { Container, VStack, Text, Button, Input, HStack, IconButton, Select } from "@chakra-ui/react";
+import { FaPlay, FaPause, FaStop, FaDownload, FaRandom } from "react-icons/fa";
 import axios from "axios";
 
 const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioUrl, setAudioUrl] = useState("");
+  const [audioUrls, setAudioUrls] = useState([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [playMode, setPlayMode] = useState("sequential");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const audioRef = useRef(null);
 
@@ -32,18 +34,17 @@ const Index = () => {
   };
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setAudioUrl(url);
-      setIsPlaying(false);
-    }
+    const files = Array.from(event.target.files);
+    const urls = files.map(file => URL.createObjectURL(file));
+    setAudioUrls(urls);
+    setCurrentTrackIndex(0);
+    setIsPlaying(false);
   };
 
   const handleDownload = () => {
-    if (audioUrl) {
+    if (audioUrls.length > 0) {
       const link = document.createElement("a");
-      link.href = audioUrl;
+      link.href = audioUrls[currentTrackIndex];
       link.download = "downloaded_audio.mp3";
       document.body.appendChild(link);
       link.click();
@@ -54,31 +55,49 @@ const Index = () => {
   const handleYoutubeDownload = async () => {
     try {
       const response = await axios.post("https://your-youtube-to-mp3-api.com/download", { url: youtubeUrl });
-      setAudioUrl(response.data.audioUrl);
+      setAudioUrls([response.data.audioUrl]);
+      setCurrentTrackIndex(0);
       setIsPlaying(false);
     } catch (error) {
       console.error("Error downloading audio from YouTube:", error);
     }
   };
 
+  const handleNextTrack = () => {
+    if (playMode === "sequential") {
+      setCurrentTrackIndex((prevIndex) => (prevIndex + 1) % audioUrls.length);
+    } else if (playMode === "random") {
+      const randomIndex = Math.floor(Math.random() * audioUrls.length);
+      setCurrentTrackIndex(randomIndex);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    handleNextTrack();
+  };
+
   return (
     <Container centerContent maxW="container.md" height="100vh" display="flex" flexDirection="column" justifyContent="center" alignItems="center">
       <VStack spacing={4}>
         <Text fontSize="2xl">Music Player</Text>
-        <audio ref={audioRef} src={audioUrl} />
+        <audio ref={audioRef} src={audioUrls[currentTrackIndex]} onEnded={handleAudioEnded} />
         <HStack spacing={2}>
-          <IconButton aria-label="Play" icon={<FaPlay />} onClick={handlePlay} isDisabled={!audioUrl || isPlaying} />
-          <IconButton aria-label="Pause" icon={<FaPause />} onClick={handlePause} isDisabled={!audioUrl || !isPlaying} />
-          <IconButton aria-label="Stop" icon={<FaStop />} onClick={handleStop} isDisabled={!audioUrl} />
+          <IconButton aria-label="Play" icon={<FaPlay />} onClick={handlePlay} isDisabled={audioUrls.length === 0 || isPlaying} />
+          <IconButton aria-label="Pause" icon={<FaPause />} onClick={handlePause} isDisabled={audioUrls.length === 0 || !isPlaying} />
+          <IconButton aria-label="Stop" icon={<FaStop />} onClick={handleStop} isDisabled={audioUrls.length === 0} />
         </HStack>
-        <Input type="file" accept="audio/*" onChange={handleFileChange} />
-        <Button leftIcon={<FaDownload />} onClick={handleDownload} isDisabled={!audioUrl}>
+        <Input type="file" accept="audio/*" multiple onChange={handleFileChange} />
+        <Button leftIcon={<FaDownload />} onClick={handleDownload} isDisabled={audioUrls.length === 0}>
           Download
         </Button>
         <Input placeholder="Enter YouTube URL" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
         <Button onClick={handleYoutubeDownload} isDisabled={!youtubeUrl}>
           Download from YouTube
         </Button>
+        <Select value={playMode} onChange={(e) => setPlayMode(e.target.value)}>
+          <option value="sequential">Sequential</option>
+          <option value="random">Random</option>
+        </Select>
       </VStack>
     </Container>
   );
